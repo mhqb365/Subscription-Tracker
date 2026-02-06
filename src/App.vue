@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import SubscriptionDetail from "./components/SubscriptionDetail.vue";
 import Dashboard from "./components/Dashboard.vue";
 import Subscriptions from "./components/Subscriptions.vue";
+import Settings from "./components/Settings.vue";
+import { initGoogleServices } from "./services/googleDrive";
 import { iconPaths } from "./icons";
 
 const navItems = [
@@ -142,6 +144,10 @@ const loadSubscriptions = () => {
 };
 
 const subscriptions = ref(loadSubscriptions());
+
+onMounted(() => {
+  initGoogleServices();
+});
 
 // Watch subscriptions and save to localStorage whenever they change
 watch(
@@ -358,6 +364,12 @@ function getRandomGradient() {
         @add="openDetail(null)"
         @edit="openDetail"
         @delete="handleDelete"
+        @import="handleImport"
+      />
+
+      <Settings
+        v-else-if="currentView === 'settings'"
+        :subscriptions="subscriptions"
         @import="handleImport"
       />
 

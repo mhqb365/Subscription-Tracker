@@ -87,8 +87,7 @@ function save() {
 
 // Generate history based on startDate and cycle
 const calculatedHistory = computed(() => {
-  if (!formData.startDate || !formData.price || formData.status !== "ACTIVE")
-    return [];
+  if (!formData.startDate || !formData.price) return [];
 
   const hist = [];
   const start = new Date(formData.startDate);
@@ -101,18 +100,17 @@ const calculatedHistory = computed(() => {
 
   let current = new Date(start);
 
-  // Logic:
-  // 1. If autoRenew is TRUE: we calculate payments from Start to Now.
-  // 2. If autoRenew is FALSE: we calculate payments from Start to Expiry
-  //    (but we never show payments scheduled for the future in "History").
-
-  // We determine the stopping point for the loop
+  // Determine the stop date for history
+  // If autoRenew is off or sub is inactive, stop at expiry
+  // Otherwise, calculate up to today
   let limitDate = now;
-  if (!formData.autoRenew && expiry < now) {
-    limitDate = expiry;
+  if (!formData.autoRenew || formData.status !== "ACTIVE") {
+    limitDate = expiry < now ? expiry : now;
   }
 
-  // Iterate from start date adding periods
+  // To catch the payment of the same day
+  limitDate.setHours(23, 59, 59, 999);
+
   while (current <= limitDate) {
     hist.push({
       date: current.toISOString().split("T")[0],
@@ -120,22 +118,23 @@ const calculatedHistory = computed(() => {
       status: "Paid",
     });
 
-    if (formData.cycle === "Monthly") {
+    const cycle = formData.cycle || "Monthly";
+    if (cycle === "Monthly") {
       current.setMonth(current.getMonth() + 1);
-    } else if (formData.cycle === "Quarterly") {
+    } else if (cycle === "Quarterly") {
       current.setMonth(current.getMonth() + 3);
-    } else if (formData.cycle === "Semi-Annually") {
+    } else if (cycle === "Semi-Annually") {
       current.setMonth(current.getMonth() + 6);
     } else {
       current.setFullYear(current.getFullYear() + 1);
     }
 
-    // Safety break
-    if (hist.length > 200) break;
+    // Safety break (e.g., 100 years of monthly payments is ~1200)
+    if (hist.length > 2000) break;
   }
 
-  // Return the most recent 12 payments
-  return hist.reverse().slice(0, 12);
+  // Return all payments, most recent first
+  return hist.reverse();
 });
 </script>
 

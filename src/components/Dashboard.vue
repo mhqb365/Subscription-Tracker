@@ -45,9 +45,9 @@ function getNextBillingDate(sub) {
   let next = new Date(start);
   if (next > today) return next;
   while (next <= today) {
-    if (sub.cycle === "Gói tháng") next.setMonth(next.getMonth() + 1);
-    else if (sub.cycle === "Gói Quý") next.setMonth(next.getMonth() + 3);
-    else if (sub.cycle === "Gói 6 tháng") next.setMonth(next.getMonth() + 6);
+    if (sub.cycle === "Monthly") next.setMonth(next.getMonth() + 1);
+    else if (sub.cycle === "Quarterly") next.setMonth(next.getMonth() + 3);
+    else if (sub.cycle === "Semi-Annually") next.setMonth(next.getMonth() + 6);
     else next.setFullYear(next.getFullYear() + 1);
     if (next.getFullYear() > today.getFullYear() + 10) break;
   }

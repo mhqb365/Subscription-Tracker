@@ -5,6 +5,7 @@ import Dashboard from "./components/Dashboard.vue";
 import Subscriptions from "./components/Subscriptions.vue";
 import Statistics from "./components/Statistics.vue";
 import Settings from "./components/Settings.vue";
+import ConfirmModal from "./components/ConfirmModal.vue";
 import { initGoogleServices, autoSync } from "./services/googleDrive";
 import { iconPaths } from "./icons";
 
@@ -69,6 +70,45 @@ const lastView = ref("dashboard");
 const selectedSub = ref(null);
 const isDark = ref(true);
 
+// Confirm Modal State
+const confirmModal = ref({
+  show: false,
+  title: "",
+  message: "",
+  confirmText: "Confirm",
+  cancelText: "Cancel",
+  isDanger: false,
+  onConfirm: () => {},
+});
+
+function showConfirm({
+  title,
+  message,
+  confirmText,
+  cancelText,
+  isDanger,
+  onConfirm,
+}) {
+  confirmModal.value = {
+    show: true,
+    title: title || "Confirm Action",
+    message: message || "Are you sure?",
+    confirmText: confirmText || "Confirm",
+    cancelText: cancelText || "Cancel",
+    isDanger: !!isDanger,
+    onConfirm,
+  };
+}
+
+function closeConfirm() {
+  confirmModal.value.show = false;
+}
+
+function handleConfirm() {
+  confirmModal.value.onConfirm();
+  closeConfirm();
+}
+
 function toggleTheme() {
   isDark.value = !isDark.value;
   updateTheme();
@@ -110,7 +150,7 @@ const loadSubscriptions = () => {
   return [
     {
       id: 1,
-      name: "Icloud",
+      name: "iCloud 2TB",
       price: 260000,
       currency: "VND",
       startDate: "2024-02-24",
@@ -127,7 +167,7 @@ const loadSubscriptions = () => {
     },
     {
       id: 2,
-      name: "Digitalocean",
+      name: "Digital Ocean 1CPU 1GB",
       price: 7,
       currency: "USD",
       startDate: "2024-02-01",
@@ -296,18 +336,32 @@ function handleSave(subData) {
 }
 
 function handleDelete(id) {
-  if (confirm(`Delete subscription?`)) {
-    subscriptions.value = subscriptions.value.filter((s) => s.id !== id);
-    if (currentView.value === "detail") {
-      currentView.value = lastView.value;
-    }
-  }
+  showConfirm({
+    title: "Delete Subscription",
+    message:
+      "Are you sure you want to delete this subscription? This action cannot be undone.",
+    confirmText: "Delete",
+    isDanger: true,
+    onConfirm: () => {
+      subscriptions.value = subscriptions.value.filter((s) => s.id !== id);
+      if (currentView.value === "detail") {
+        currentView.value = lastView.value;
+      }
+    },
+  });
 }
 
 function handleImport(data) {
-  if (confirm(`Replace all existing subscriptions with imported data?`)) {
-    subscriptions.value = data;
-  }
+  showConfirm({
+    title: "Import Data",
+    message:
+      "This will replace all your current subscriptions with the imported data. Continue?",
+    confirmText: "Import",
+    isDanger: true,
+    onConfirm: () => {
+      subscriptions.value = data;
+    },
+  });
 }
 
 function handleNav(item) {
@@ -381,6 +435,7 @@ function getRandomGradient() {
         v-else-if="currentView === 'settings'"
         :subscriptions="subscriptions"
         :is-dark="isDark"
+        :show-confirm="showConfirm"
         @import="handleImport"
         @toggle-theme="toggleTheme"
       />
@@ -399,6 +454,17 @@ function getRandomGradient() {
         @delete="handleDelete"
       />
     </main>
+
+    <ConfirmModal
+      :show="confirmModal.show"
+      :title="confirmModal.title"
+      :message="confirmModal.message"
+      :confirm-text="confirmModal.confirmText"
+      :cancel-text="confirmModal.cancelText"
+      :is-danger="confirmModal.isDanger"
+      @confirm="handleConfirm"
+      @cancel="closeConfirm"
+    />
   </div>
 </template>
 

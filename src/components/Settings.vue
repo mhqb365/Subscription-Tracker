@@ -20,6 +20,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  showConfirm: {
+    type: Function,
+    required: true,
+  },
 });
 
 const emit = defineEmits(["import", "toggle-theme"]);
@@ -40,38 +44,43 @@ const syncStatus = computed(() => {
 });
 
 async function handleBackup() {
-  if (
-    confirm(
+  props.showConfirm({
+    title: "Backup to Cloud",
+    message:
       "This will overwrite the data on your Google Drive with current data. Continue?",
-    )
-  ) {
-    try {
-      await saveToDrive(props.subscriptions);
-      alert("Backup successful!");
-    } catch (e) {
-      alert("Failed to backup: " + e.message);
-    }
-  }
+    confirmText: "Backup",
+    onConfirm: async () => {
+      try {
+        await saveToDrive(props.subscriptions);
+        // alert("Backup successful!");
+      } catch (e) {
+        alert("Failed to backup: " + e.message);
+      }
+    },
+  });
 }
 
 async function handleRestore() {
-  if (
-    confirm(
+  props.showConfirm({
+    title: "Restore from Cloud",
+    message:
       "This will overwrite your local data with data from Google Drive. Continue?",
-    )
-  ) {
-    try {
-      const data = await loadFromDrive();
-      if (data) {
-        emit("import", data);
-        alert("Restore successful!");
-      } else {
-        alert("No configuration file found on Drive.");
+    confirmText: "Restore",
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const data = await loadFromDrive();
+        if (data) {
+          emit("import", data);
+          // alert("Restore successful!");
+        } else {
+          alert("No configuration file found on Drive.");
+        }
+      } catch (e) {
+        alert("Failed to restore data: " + e.message);
       }
-    } catch (e) {
-      alert("Failed to restore data: " + e.message);
-    }
-  }
+    },
+  });
 }
 </script>
 
@@ -107,7 +116,7 @@ async function handleRestore() {
       <h2>Google Drive Sync</h2>
       <p class="description">
         Sync your subscriptions across devices using your personal Google Drive
-        (App Data folder).
+        (App Data folder)
       </p>
 
       <div v-if="initError" class="error-alert">
@@ -182,6 +191,7 @@ h1 {
   margin: 0;
   background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -346,6 +356,7 @@ h2 {
 [data-theme="light"] h1 {
   background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 [data-theme="light"] .setting-section {

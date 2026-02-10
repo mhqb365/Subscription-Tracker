@@ -167,14 +167,6 @@ function formatDate(dateStr) {
         <!-- <p class="subtitle">Manage all your subscriptions in one place</p> -->
       </div>
       <div class="header-actions">
-        <button class="pill-btn secondary" @click="handleImportClick">
-          <svg viewBox="0 0 24 24"><path :d="iconPaths.upload" /></svg>
-          Import
-        </button>
-        <button class="pill-btn secondary" @click="exportData">
-          <svg viewBox="0 0 24 24"><path :d="iconPaths.download" /></svg>
-          Export
-        </button>
         <button class="pill-btn primary" @click="$emit('add')">
           <svg viewBox="0 0 24 24"><path :d="iconPaths.plus" /></svg>
           Add Subscription
@@ -409,7 +401,13 @@ function formatDate(dateStr) {
   width: 100%;
   height: 100%;
   outline: none;
-  font-size: 14px;
+  font-size: 16px; /* Fix Safari zoom */
+  line-height: normal; /* Fix vertical alignment on Safari */
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0; /* Fix iOS rounding */
+  margin: 0;
+  padding: 0;
 }
 
 .clear-btn {
@@ -804,5 +802,139 @@ function formatDate(dateStr) {
 [data-theme="light"] .days-badge.warning {
   background: #fff0eb;
   color: #e65100;
+}
+
+/* Responsive Mobile Fixes */
+@media (max-width: 768px) {
+  /* Header Actions */
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+
+  .header-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .search-box {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .filter-separator {
+    display: none;
+  }
+
+  .filters-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .dropdown {
+    flex: 1 1 45%; /* 2 cols */
+  }
+
+  .sort-group {
+    width: 100%;
+    margin-top: 4px;
+    overflow-x: auto;
+    justify-content: space-between;
+  }
+
+  .sort-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 6px;
+    font-size: 11px;
+  }
+
+  .subs-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Subscription Card */
+  .sub-card-large {
+    padding: 16px;
+  }
+
+  .card-top {
+    flex-wrap: nowrap; /* Keep actions on the same line */
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-brand {
+    max-width: 70%; /* Ensure space for actions */
+    overflow: hidden;
+  }
+
+  .card-brand h3 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-mid {
+    flex-direction: row; /* Keep on same row if possible */
+    flex-wrap: wrap; /* Allow wrap if price is too long */
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    margin-top: 8px;
+  }
+
+  .big-price {
+    font-size: 20px;
+  }
+
+  .days-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+
+  .card-dates {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+  }
+
+  .arrow {
+    display: none;
+  }
+
+  .date-col {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .date-col .label {
+    margin-bottom: 0;
+    font-size: 11px;
+  }
+
+  .date-col .val {
+    font-size: 13px;
+  }
 }
 </style>

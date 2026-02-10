@@ -333,18 +333,6 @@ function getRandomGradient() {
           <span>{{ item.label }}</span>
         </button>
       </nav>
-      <div class="sidebar-footer">
-        <button
-          class="theme-toggle"
-          type="button"
-          @click="toggleTheme"
-          :aria-label="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path :d="isDark ? iconPaths.sun : iconPaths.moon" />
-          </svg>
-        </button>
-      </div>
     </aside>
 
     <main class="main">
@@ -371,7 +359,9 @@ function getRandomGradient() {
       <Settings
         v-else-if="currentView === 'settings'"
         :subscriptions="subscriptions"
+        :is-dark="isDark"
         @import="handleImport"
+        @toggle-theme="toggleTheme"
       />
 
       <Statistics
@@ -499,46 +489,6 @@ function getRandomGradient() {
   color: #fff;
 }
 
-.sidebar-footer {
-  margin-top: auto;
-}
-
-.theme-toggle {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-[data-theme="light"] .theme-toggle {
-  background: transparent;
-  border-color: #e5e7eb;
-  color: #6b7280;
-}
-[data-theme="light"] .theme-toggle:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-.theme-toggle svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-}
-
 .main {
   flex: 1;
   padding: 28px 34px 80px;
@@ -597,14 +547,14 @@ function getRandomGradient() {
     width: 100%;
     height: 70px;
     flex-direction: row;
-    justify-content: space-around;
-    padding: 0 16px;
-    padding: 0 16px;
-    background: #0f182c; /* Ensure background is solid */
+    justify-content: space-between;
+    padding: 0 12px;
+    background: #0f182c;
     border-right: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08); /* Top border instead of bottom */
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     z-index: 100;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    gap: 8px;
   }
   [data-theme="light"] .sidebar {
     background: #ffffff;
@@ -612,18 +562,14 @@ function getRandomGradient() {
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
   }
 
-  /* Hide Brand and Footer/Theme Toggle on Mobile Nav if space is tight, or adapt */
   .brand {
     display: none;
-  }
-  .sidebar-footer {
-    display: none; /* Alternatively, add theme toggle as a nav item or top bar item */
   }
 
   .nav {
     flex-direction: row;
     height: 100%;
-    justify-content: space-between;
+    justify-content: space-around;
     width: 100%;
     gap: 0;
   }

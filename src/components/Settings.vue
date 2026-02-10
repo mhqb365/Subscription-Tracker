@@ -16,14 +16,17 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  isDark: {
+    type: Boolean,
+    default: true,
+  },
 });
 
-const emit = defineEmits(["import"]);
+const emit = defineEmits(["import", "toggle-theme"]);
 
 const syncStatus = computed(() => {
   if (isSyncing.value) return "Syncing...";
   if (lastSyncTime.value) {
-    // Format: "10/02/2026, 10:34:45"
     return `Last synced: ${lastSyncTime.value.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
@@ -60,7 +63,7 @@ async function handleRestore() {
     try {
       const data = await loadFromDrive();
       if (data) {
-        emit("import", data); // Reuse handleImport from App.vue
+        emit("import", data);
         alert("Restore successful!");
       } else {
         alert("No configuration file found on Drive.");
@@ -73,12 +76,34 @@ async function handleRestore() {
 </script>
 
 <template>
-  <div class="settings-container">
+  <div class="settings-container fade-in">
     <header class="header">
       <h1>Settings</h1>
     </header>
 
+    <!-- Appearance Section -->
     <div class="setting-section">
+      <h2>Appearance</h2>
+      <div class="appearance-row">
+        <div class="appearance-info">
+          <span class="appearance-label">Dark Mode</span>
+          <p class="description" style="margin: 0">
+            Switch between light and dark themes
+          </p>
+        </div>
+        <button
+          class="toggle-switch"
+          :class="{ active: isDark }"
+          @click="$emit('toggle-theme')"
+          aria-label="Toggle Dark Mode"
+        >
+          <div class="knob"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sync Section -->
+    <div class="setting-section" style="margin-top: 24px">
       <h2>Google Drive Sync</h2>
       <p class="description">
         Sync your subscriptions across devices using your personal Google Drive
@@ -179,12 +204,68 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
+/* Appearance Toggle */
+.appearance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.appearance-label {
+  font-weight: 600;
+  color: #fff;
+  font-size: 16px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.toggle-switch {
+  width: 52px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+  padding: 2px;
+}
+
+.toggle-switch .knob {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch.active {
+  background: #6366f1;
+}
+
+.toggle-switch.active .knob {
+  transform: translateX(20px);
+}
+
+[data-theme="light"] .toggle-switch {
+  background: #e2e8f0;
+}
+[data-theme="light"] .toggle-switch.active {
+  background: #4f46e5;
+}
+
+/* Sync Card Styles */
 .sync-card {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   padding: 20px;
 }
 
+/* ... (Keep existing Sync Card Styles) ... */
 .status-row {
   display: flex;
   justify-content: space-between;
@@ -261,6 +342,7 @@ h2 {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* Light Theme Overrides */
 [data-theme="light"] h1 {
   background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%);
   -webkit-background-clip: text;
@@ -271,7 +353,8 @@ h2 {
   border-color: #e2e8f0;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
-[data-theme="light"] h2 {
+[data-theme="light"] h2,
+[data-theme="light"] .appearance-label {
   color: #1e293b;
 }
 [data-theme="light"] .description {
@@ -293,9 +376,6 @@ h2 {
   color: #334155;
 }
 [data-theme="light"] .btn-secondary:hover {
-  background: #cbd5e1;
-}
-.btn-secondary:hover {
   background: #cbd5e1;
 }
 
@@ -321,5 +401,16 @@ h2 {
 .error-hint {
   font-size: 0.85em;
   opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .actions-row {
+    flex-direction: column;
+  }
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

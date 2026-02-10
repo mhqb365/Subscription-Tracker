@@ -64,20 +64,20 @@ const calculateTotalByPeriod = (period) => {
   switch (period) {
     case "month":
       rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      rangeEnd = now;
       break;
     case "quarter":
       const quarter = Math.floor(now.getMonth() / 3);
       rangeStart = new Date(now.getFullYear(), quarter * 3, 1);
-      rangeEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59);
+      rangeEnd = now;
       break;
     case "year":
       rangeStart = new Date(now.getFullYear(), 0, 1);
-      rangeEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+      rangeEnd = now;
       break;
     case "all":
       rangeStart = new Date(0);
-      rangeEnd = now; // Tính đến thời điểm hiện tại
+      rangeEnd = now;
       break;
   }
 

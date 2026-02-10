@@ -180,14 +180,23 @@ const totalSpending = computed(() => {
   let total = 0;
   subscriptions.value.forEach((sub) => {
     if (sub.status !== "ACTIVE") return;
-    let amount = sub.price;
+    let amount = Number(sub.price) || 0;
+
+    // Currency conversion
     if (sub.currency === "USD") {
-      amount = sub.price * 25400; // Approximate rate
+      amount = amount * 25400;
     }
-    // Very simple cycle calculation, assumes monthly for dashboard
-    if (sub.cycle === "Quarterly") amount = amount / 3;
-    if (sub.cycle === "Semi-Annually") amount = amount / 6;
-    if (sub.cycle === "Annually") amount = amount / 12;
+
+    // Cycle normalization (Monthly average)
+    const cycle = sub.cycle || "";
+    if (cycle === "Quarterly" || cycle === "Gói Quý") {
+      amount = amount / 3;
+    } else if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng") {
+      amount = amount / 6;
+    } else if (cycle === "Annually" || cycle === "Gói Năm") {
+      amount = amount / 12;
+    }
+
     total += amount;
   });
   return new Intl.NumberFormat("vi-VN", {

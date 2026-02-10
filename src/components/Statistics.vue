@@ -39,9 +39,9 @@ const calculateTotalByPeriod = (period) => {
   props.subscriptions.forEach((sub) => {
     if (sub.status !== "ACTIVE") return;
 
-    let amount = sub.price;
+    let amount = Number(sub.price) || 0;
     if (sub.currency === "USD") {
-      amount = sub.price * 25400;
+      amount = amount * 25400;
     }
 
     let currentBillDate = new Date(sub.startDate);
@@ -55,15 +55,20 @@ const calculateTotalByPeriod = (period) => {
       if (currentBillDate >= pStart) {
         total += amount;
       }
-      if (sub.cycle === "Gói tháng")
+
+      const cycle = sub.cycle || "";
+      if (cycle === "Monthly" || cycle === "Gói tháng")
         currentBillDate.setMonth(currentBillDate.getMonth() + 1);
-      else if (sub.cycle === "Gói Quý")
+      else if (cycle === "Quarterly" || cycle === "Gói Quý")
         currentBillDate.setMonth(currentBillDate.getMonth() + 3);
-      else if (sub.cycle === "Gói 6 tháng")
+      else if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng")
         currentBillDate.setMonth(currentBillDate.getMonth() + 6);
-      else if (sub.cycle === "Gói Năm")
+      else if (cycle === "Annually" || cycle === "Gói Năm")
         currentBillDate.setFullYear(currentBillDate.getFullYear() + 1);
       else currentBillDate.setMonth(currentBillDate.getMonth() + 1);
+
+      // Safety break to prevent infinite loops with invalid dates
+      if (currentBillDate > new Date(now.getFullYear() + 20, 0, 1)) break;
     }
   });
 
@@ -90,7 +95,7 @@ const stats = computed(() => [
     color: "#ec4899",
   },
   {
-    label: "Total",
+    label: "Total Paid",
     value: calculateTotalByPeriod("all"),
     icon: "dollar",
     color: "#10b981",
@@ -113,14 +118,18 @@ const spendingByCategory = computed(() => {
       };
     }
 
-    let monthlyAmount = sub.price;
+    let monthlyAmount = Number(sub.price) || 0;
     if (sub.currency === "USD") {
-      monthlyAmount = sub.price * 25400;
+      monthlyAmount = monthlyAmount * 25400;
     }
 
-    if (sub.cycle === "Gói Quý") monthlyAmount = monthlyAmount / 3;
-    if (sub.cycle === "Gói 6 tháng") monthlyAmount = monthlyAmount / 6;
-    if (sub.cycle === "Gói Năm") monthlyAmount = monthlyAmount / 12;
+    const cycle = sub.cycle || "";
+    if (cycle === "Quarterly" || cycle === "Gói Quý")
+      monthlyAmount = monthlyAmount / 3;
+    if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng")
+      monthlyAmount = monthlyAmount / 6;
+    if (cycle === "Annually" || cycle === "Gói Năm")
+      monthlyAmount = monthlyAmount / 12;
 
     categoryMap[sub.category].total += monthlyAmount;
     categoryMap[sub.category].count++;
@@ -135,13 +144,18 @@ const topExpensive = computed(() => {
   return [...props.subscriptions]
     .filter((s) => s.status === "ACTIVE")
     .map((sub) => {
-      let monthlyAmount = sub.price;
+      let monthlyAmount = Number(sub.price) || 0;
       if (sub.currency === "USD") {
-        monthlyAmount = sub.price * 25400;
+        monthlyAmount = monthlyAmount * 25400;
       }
-      if (sub.cycle === "Gói Quý") monthlyAmount = monthlyAmount / 3;
-      if (sub.cycle === "Gói 6 tháng") monthlyAmount = monthlyAmount / 6;
-      if (sub.cycle === "Gói Năm") monthlyAmount = monthlyAmount / 12;
+
+      const cycle = sub.cycle || "";
+      if (cycle === "Quarterly" || cycle === "Gói Quý")
+        monthlyAmount = monthlyAmount / 3;
+      if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng")
+        monthlyAmount = monthlyAmount / 6;
+      if (cycle === "Annually" || cycle === "Gói Năm")
+        monthlyAmount = monthlyAmount / 12;
 
       return { ...sub, monthlyAmount };
     })
@@ -160,23 +174,25 @@ const totalPaidPerSubscription = computed(() => {
         return { ...sub, totalPaid: 0, cycleCount: 0 };
       }
 
-      let amount = sub.price;
+      let amount = Number(sub.price) || 0;
       if (sub.currency === "USD") {
-        amount = sub.price * 25400;
+        amount = amount * 25400;
       }
 
-      const cycleMonths = {
-        "Gói tháng": 1,
-        "Gói Quý": 3,
-        "Gói 6 tháng": 6,
-        "Gói Năm": 12,
-      };
+      const cycle = sub.cycle || "";
+      let monthsPerCycle = 1;
+      if (cycle === "Quarterly" || cycle === "Gói Quý") monthsPerCycle = 3;
+      else if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng")
+        monthsPerCycle = 6;
+      else if (cycle === "Annually" || cycle === "Gói Năm") monthsPerCycle = 12;
 
-      const monthsPerCycle = cycleMonths[sub.cycle] || 1;
       const daysSinceStart = Math.floor(
         (now - subStart) / (1000 * 60 * 60 * 24),
       );
-      const cycleCount = Math.floor(daysSinceStart / (monthsPerCycle * 30));
+      const cycleCount = Math.max(
+        1,
+        Math.floor(daysSinceStart / (monthsPerCycle * 30)) + 1,
+      );
       const totalPaid = amount * cycleCount;
 
       return {
@@ -208,6 +224,7 @@ function getCategoryColor(category) {
     internet: "#06b6d4",
     productivity: "#8b5cf6",
     other: "#6b7280",
+    credit: "#f43f5e",
   };
   return colors[category] || "#6b7280";
 }

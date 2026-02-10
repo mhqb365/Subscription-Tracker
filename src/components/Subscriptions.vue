@@ -9,51 +9,17 @@ const props = defineProps({
   },
   categories: {
     type: Array,
-    required: true,
+    default: () => [],
   },
 });
 
-const emit = defineEmits(["add", "edit", "delete", "import"]);
-
-function exportData() {
-  const dataStr = JSON.stringify(props.subscriptions, null, 2);
-  const dataUri =
-    "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-  const exportFileDefaultName = "subscriptions.json";
-
-  const linkElement = document.createElement("a");
-  linkElement.setAttribute("href", dataUri);
-  linkElement.setAttribute("download", exportFileDefaultName);
-  linkElement.click();
-}
-
-function handleImportClick() {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".json";
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (Array.isArray(data)) {
-          emit("import", data);
-          alert("Import successful!");
-        } else {
-          alert("Invalid file format. Expected a JSON array of subscriptions.");
-        }
-      } catch (err) {
-        alert("Error parsing JSON file: " + err.message);
-      }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
+const emit = defineEmits([
+  "add",
+  "edit",
+  "delete",
+  "import-json",
+  "export-json",
+]);
 
 const searchQuery = ref("");
 const statusFilter = ref("All Status");
@@ -61,54 +27,42 @@ const categoryFilter = ref("All Categories");
 const sortKey = ref("name"); // name, price, expiry
 const sortOrder = ref("asc");
 
-const statusOptions = ["All Status", "Active", "Inactive", "Expiring Soon"];
+const statusOptions = ["All Status", "Active", "Expired"];
 
 const filteredSubs = computed(() => {
-  let result = [...props.subscriptions];
+  let subs = [...props.subscriptions];
 
   // Search
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
-    result = result.filter((s) => s.name.toLowerCase().includes(q));
+    subs = subs.filter((s) => s.name.toLowerCase().includes(q));
   }
 
-  // Status Filter
+  // Filter Status
   if (statusFilter.value !== "All Status") {
-    const today = new Date();
-    result = result.filter((s) => {
-      if (statusFilter.value === "Active") return s.status === "ACTIVE";
-      if (statusFilter.value === "Inactive") return s.status !== "ACTIVE";
-      if (statusFilter.value === "Expiring Soon") {
-        const diff = new Date(s.expiry) - today;
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        return days > 0 && days <= 30;
-      }
-      return true;
-    });
+    if (statusFilter.value === "Active")
+      subs = subs.filter((s) => s.status === "ACTIVE");
+    if (statusFilter.value === "Expired")
+      subs = subs.filter((s) => s.status === "EXPIRED");
   }
 
-  // Category Filter
+  // Filter Category
   if (categoryFilter.value !== "All Categories") {
-    result = result.filter((s) => s.category === categoryFilter.value);
+    subs = subs.filter((s) => s.category === categoryFilter.value);
   }
 
   // Sort
-  result.sort((a, b) => {
-    let valA = a[sortKey.value];
-    let valB = b[sortKey.value];
-
-    if (sortKey.value === "price") {
-      // normalize to base currency approx if needed, but for now just raw number
-      // Assuming mixed currencies might be tricky, usually convert to one base
-      // Simple hack: if currency different, strict compare might be off
-      valA = Number(valA);
-      valB = Number(valB);
+  subs.sort((a, b) => {
+    let valA, valB;
+    if (sortKey.value === "name") {
+      valA = a.name.toLowerCase();
+      valB = b.name.toLowerCase();
+    } else if (sortKey.value === "price") {
+      valA = a.price;
+      valB = b.price;
     } else if (sortKey.value === "expiry") {
-      valA = new Date(valA).getTime();
-      valB = new Date(valB).getTime();
-    } else {
-      valA = (valA || "").toString().toLowerCase();
-      valB = (valB || "").toString().toLowerCase();
+      valA = getNextBillingDate(a).getTime();
+      valB = getNextBillingDate(b).getTime();
     }
 
     if (valA < valB) return sortOrder.value === "asc" ? -1 : 1;
@@ -116,7 +70,7 @@ const filteredSubs = computed(() => {
     return 0;
   });
 
-  return result;
+  return subs;
 });
 
 function toggleSort(key) {
@@ -128,26 +82,43 @@ function toggleSort(key) {
   }
 }
 
+function handleImportClick() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (readEvt) => {
+        try {
+          const json = JSON.parse(readEvt.target.result);
+          emit("import-json", json);
+        } catch (err) {
+          alert("Invalid JSON file");
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+  input.click();
+}
+
+function exportData() {
+  emit("export-json");
+}
+
 function formatPriceDisplay(sub) {
   return (
     new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: sub.currency,
-    }).format(sub.price) +
-    "/" +
-    (sub.cycle === "Gói tháng"
-      ? "tháng"
-      : sub.cycle === "Gói Quý"
-        ? "quý"
-        : sub.cycle === "Gói 6 tháng"
-          ? "6 tháng"
-          : "năm")
+    }).format(sub.price) + "/mo"
   );
 }
 
 function getNextBillingDate(sub) {
   if (sub.status !== "ACTIVE" || !sub.autoRenew) return new Date(sub.expiry);
-
   const today = new Date();
   const start = new Date(sub.startDate);
   let next = new Date(start);
@@ -188,24 +159,25 @@ function formatDate(dateStr) {
 </script>
 
 <template>
-  <div class="subscriptions-page">
+  <div class="subscriptions-page fade-in">
     <header class="page-header">
       <div class="header-content">
-        <h1>Subscription Management</h1>
-        <p class="subtitle">Manage all your subscriptions in one place</p>
+        <!-- <p class="eyebrow">QUẢN LÝ</p> -->
+        <h1>Quản lý đăng ký</h1>
+        <!-- <p class="subtitle">Quản lý tất cả gói đăng ký của bạn ở một nơi</p> -->
       </div>
       <div class="header-actions">
         <button class="pill-btn secondary" @click="handleImportClick">
           <svg viewBox="0 0 24 24"><path :d="iconPaths.upload" /></svg>
-          Import
+          Nhập
         </button>
         <button class="pill-btn secondary" @click="exportData">
           <svg viewBox="0 0 24 24"><path :d="iconPaths.download" /></svg>
-          Export
+          Xuất
         </button>
         <button class="pill-btn primary" @click="$emit('add')">
           <svg viewBox="0 0 24 24"><path :d="iconPaths.plus" /></svg>
-          Add Subscription
+          Thêm gói đăng ký
         </button>
       </div>
     </header>
@@ -369,18 +341,10 @@ function formatDate(dateStr) {
 </template>
 
 <style scoped>
+/* Specific styles for Subscriptions page */
+
 .subscriptions-page {
   animation: fadeIn 0.3s ease;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .page-header {
@@ -390,15 +354,13 @@ function formatDate(dateStr) {
   margin-bottom: 32px;
   gap: 20px;
 }
+
 .header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
 }
-.header-content h1 {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
+
 .subtitle {
   color: var(--muted);
   margin: 0;
@@ -427,9 +389,11 @@ function formatDate(dateStr) {
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: border-color 0.2s;
 }
+
 .search-box:focus-within {
   border-color: #6366f1;
 }
+
 .search-box svg {
   width: 20px;
   height: 20px;
@@ -437,6 +401,7 @@ function formatDate(dateStr) {
   fill: none;
   stroke-width: 2;
 }
+
 .search-box input {
   background: transparent;
   border: none;
@@ -460,10 +425,12 @@ function formatDate(dateStr) {
   transition: all 0.2s;
   flex-shrink: 0;
 }
+
 .clear-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
+
 .clear-btn svg {
   width: 16px;
   height: 16px;
@@ -478,6 +445,7 @@ function formatDate(dateStr) {
   place-items: center;
   padding: 0 4px;
 }
+
 .filter-separator svg {
   width: 20px;
   height: 20px;
@@ -495,6 +463,7 @@ function formatDate(dateStr) {
   position: relative;
   min-width: 140px;
 }
+
 .dropdown select {
   width: 100%;
   height: 48px;
@@ -508,10 +477,12 @@ function formatDate(dateStr) {
   appearance: none;
   transition: border-color 0.2s;
 }
+
 .dropdown select:focus {
   border-color: #6366f1;
   outline: none;
 }
+
 .select-arrow {
   position: absolute;
   right: 14px;
@@ -522,6 +493,7 @@ function formatDate(dateStr) {
   display: grid;
   place-items: center;
 }
+
 .select-arrow svg {
   width: 16px;
   height: 16px;
@@ -539,6 +511,7 @@ function formatDate(dateStr) {
   height: 48px;
   align-items: center;
 }
+
 .sort-btn {
   background: transparent;
   border: none;
@@ -554,9 +527,11 @@ function formatDate(dateStr) {
   gap: 6px;
   transition: all 0.2s;
 }
+
 .sort-btn:hover {
   color: #fff;
 }
+
 .sort-btn.active {
   background: rgba(99, 102, 241, 0.15);
   color: #818cf8;
@@ -590,6 +565,7 @@ function formatDate(dateStr) {
   position: relative;
   overflow: hidden;
 }
+
 .sub-card-large:hover {
   transform: translateY(-4px);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
@@ -601,37 +577,41 @@ function formatDate(dateStr) {
   justify-content: space-between;
   align-items: flex-start;
 }
+
 .card-brand {
   display: flex;
-  gap: 14px;
-  align-items: center;
+  gap: 16px;
 }
+
 .brand-icon {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 16px;
   display: grid;
   place-items: center;
-  color: white;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
+
 .brand-icon svg {
   width: 28px;
   height: 28px;
   fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
+  stroke: white;
+  stroke-width: 2;
 }
+
 .brand-info h3 {
-  margin: 0 0 4px;
+  margin: 0 0 6px 0;
   font-size: 18px;
+  font-weight: 700;
+  color: #fff;
 }
+
 .brand-cat {
-  font-size: 13px;
-  color: var(--muted);
   display: flex;
   align-items: center;
-  text-transform: capitalize;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .card-actions {
@@ -640,27 +620,34 @@ function formatDate(dateStr) {
   opacity: 0;
   transition: 0.2s;
 }
+
 .sub-card-large:hover .card-actions {
   opacity: 1;
 }
+
 .icon-btn-sm {
   width: 32px;
   height: 32px;
   border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
   border: none;
   cursor: pointer;
+  transition: all 0.2s;
 }
+
 .icon-btn-sm:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: white;
 }
+
 .icon-btn-sm.danger:hover {
-  color: #ff6b6b;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
+
 .icon-btn-sm svg {
   width: 16px;
   height: 16px;
@@ -672,193 +659,150 @@ function formatDate(dateStr) {
 .card-mid {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .big-price {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
-  font-feature-settings: "tnum";
+  color: #fff;
   letter-spacing: -0.5px;
 }
+
 .days-badge {
-  border: 1px solid rgba(58, 222, 139, 0.4);
-  color: #3ade8b;
-  padding: 6px 12px;
-  border-radius: 20px;
   font-size: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 100px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  color: var(--muted);
 }
+
 .days-badge.warning {
-  border-color: rgba(255, 159, 67, 0.4);
-  color: #ff9f43;
+  background: rgba(255, 111, 60, 0.15);
+  color: #ff6f3c;
 }
 
 .card-dates {
-  background: #0a0f1d;
-  padding: 12px 16px;
-  border-radius: 12px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  justify-content: space-between;
 }
+
 .date-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
+
 .date-col .label {
   font-size: 10px;
-  color: #64748b;
+  color: var(--muted);
   font-weight: 700;
-  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
+
 .date-col .val {
   font-size: 13px;
-  font-weight: 600;
   color: #dfe7ff;
+  font-weight: 500;
 }
+
 .arrow {
-  color: #475569;
-  font-size: 14px;
+  color: var(--muted);
+  opacity: 0.3;
 }
 
 .card-footer {
   margin-top: auto;
+  padding-top: 16px;
 }
+
 .auto-renew {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
-  padding: 8px 12px;
-  border-radius: 20px;
-  width: fit-content;
+  color: var(--muted);
 }
+
+.auto-renew.active {
+  color: #3ade8b;
+}
+
 .auto-renew svg {
   width: 14px;
   height: 14px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
-  animation: spin 4s linear infinite;
-}
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
+/* Light Theme Overrides */
 [data-theme="light"] .search-box {
   background: white;
-  border-color: #e5e7eb;
+  border-color: rgba(0, 0, 0, 0.1);
 }
+
 [data-theme="light"] .search-box input {
-  color: #1f2937;
-}
-[data-theme="light"] .clear-btn:hover {
-  background: #f3f4f6;
   color: #111827;
 }
+
 [data-theme="light"] .dropdown select {
   background: white;
-  border-color: #e5e7eb;
-  color: #374151;
+  color: #111827;
+  border-color: rgba(0, 0, 0, 0.1);
 }
+
 [data-theme="light"] .sort-group {
-  background: white;
-  border-color: #e5e7eb;
+  background: rgba(0, 0, 0, 0.03);
+  border-color: transparent;
 }
+
+[data-theme="light"] .sort-btn {
+  color: #6b7280;
+}
+
 [data-theme="light"] .sort-btn:hover {
   color: #111827;
 }
-[data-theme="light"] .sort-btn.active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #3b82f6;
-}
+
 [data-theme="light"] .sub-card-large {
   background: white;
   border-color: rgba(0, 0, 0, 0.05);
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
-[data-theme="light"] .card-dates,
-[data-theme="light"] .card-top .brand-icon {
-  /* brand icon uses gradient but maybe needs shadow adjustment */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-[data-theme="light"] .card-dates {
-  background: #f9fafb;
-  border-color: #f3f4f6;
-}
-[data-theme="light"] .date-col .val {
+
+[data-theme="light"] .brand-info h3 {
   color: #111827;
 }
+
+[data-theme="light"] .big-price {
+  color: #111827;
+}
+
+[data-theme="light"] .date-col .val {
+  color: #374151;
+}
+
 [data-theme="light"] .icon-btn-sm {
   background: #f3f4f6;
   color: #6b7280;
 }
+
 [data-theme="light"] .icon-btn-sm:hover {
   background: #e5e7eb;
   color: #111827;
 }
 
-@media (max-width: 600px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .header-content h1 {
-    font-size: 20px;
-  }
-  .pill-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  .header-actions {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .search-box {
-    min-width: 0;
-  }
-  .filter-separator {
-    display: none;
-  }
-  .filters-row {
-    flex-wrap: wrap;
-  }
-  .dropdown,
-  .dropdown select {
-    flex: 1;
-    min-width: 0;
-  }
-  .sort-group {
-    width: 100%;
-    overflow-x: auto;
-  }
-  .sort-btn {
-    flex: 1;
-    justify-content: center;
-    white-space: nowrap;
-  }
-  .subs-grid {
-    grid-template-columns: 1fr;
-  }
-  .card-actions {
-    opacity: 1;
-  }
+[data-theme="light"] .days-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+[data-theme="light"] .days-badge.warning {
+  background: #fff0eb;
+  color: #e65100;
 }
 </style>

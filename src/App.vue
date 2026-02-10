@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import SubscriptionDetail from "./components/SubscriptionDetail.vue";
 import Dashboard from "./components/Dashboard.vue";
 import Subscriptions from "./components/Subscriptions.vue";
+import Statistics from "./components/Statistics.vue";
 import Settings from "./components/Settings.vue";
 import { initGoogleServices } from "./services/googleDrive";
 import { iconPaths } from "./icons";
@@ -371,6 +372,11 @@ function getRandomGradient() {
         v-else-if="currentView === 'settings'"
         :subscriptions="subscriptions"
         @import="handleImport"
+      />
+
+      <Statistics
+        v-else-if="currentView === 'statistics'"
+        :subscriptions="subscriptions"
       />
 
       <SubscriptionDetail

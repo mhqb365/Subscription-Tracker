@@ -205,7 +205,7 @@ h6 {
   padding: 14px 16px;
   border-radius: 12px;
   color: #fff;
-  font-size: 14px;
+  font-size: 16px; /* iOS Safari fix: >= 16px prevents auto-zoom */
   outline: none;
   width: 100%;
   transition: 0.2s;

@@ -13,7 +13,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["view-all", "edit", "delete"]);
+const emit = defineEmits(["view-all", "edit", "delete", "add"]);
 
 // Show top 5 subscriptions expiring soonest
 const expiringSubs = computed(() => {
@@ -63,15 +63,15 @@ function getDaysLeft(sub) {
 </script>
 
 <template>
-  <div class="dashboard-page">
-    <header class="top-bar">
+  <div class="dashboard-page fade-in">
+    <header class="page-header">
       <div>
-        <p class="eyebrow">Overview</p>
-        <h1>Dashboard</h1>
+        <!-- <p class="eyebrow">TỔNG QUAN</p> -->
+        <h1>Bảng điều khiển</h1>
       </div>
       <button class="pill-btn primary" @click="$emit('add')">
         <svg viewBox="0 0 24 24"><path :d="iconPaths.plus" /></svg>
-        Add Subscription
+        Thêm gói đăng ký
       </button>
     </header>
 
@@ -94,10 +94,12 @@ function getDaysLeft(sub) {
       </article>
     </section>
 
-    <section class="recent-section">
+    <section class="section">
       <div class="section-head">
-        <h2>Recent Subscriptions</h2>
-        <button class="btn-text" @click="$emit('view-all')">View All</button>
+        <h2 class="section-title" style="margin-bottom: 0">
+          Gói đăng ký gần đây
+        </h2>
+        <button class="btn-text" @click="$emit('view-all')">Xem tất cả</button>
       </div>
 
       <div class="subscription-list">
@@ -156,46 +158,15 @@ function getDaysLeft(sub) {
 </template>
 
 <style scoped>
-.dashboard-page {
-  animation: fadeIn 0.3s ease;
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.top-bar h1 {
-  font-size: 28px;
-  letter-spacing: -0.5px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
-}
+/* Specific styles for Dashboard */
 
 .stat-card {
+  /* Override default stat-card for dashboard gradients */
   position: relative;
-  border-radius: 18px;
-  padding: 18px;
-  color: #fff;
   overflow: hidden;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  border: none;
 }
+
 .stat-card::after {
   content: "";
   position: absolute;
@@ -207,57 +178,54 @@ function getDaysLeft(sub) {
   );
   pointer-events: none;
 }
+
 .stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
   background: rgba(255, 255, 255, 0.2);
-  display: grid;
-  place-items: center;
   margin-left: auto;
 }
-.stat-icon svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-}
+
 .stat-value {
-  font-size: 26px;
-  font-weight: 800;
   margin-top: 12px;
-  letter-spacing: -0.5px;
-}
-.stat-label {
-  font-size: 13px;
-  opacity: 0.9;
-  margin-top: 4px;
+  font-size: 26px;
+  color: #ffffff; /* Default white */
 }
 
+.stat-label {
+  opacity: 0.9;
+  color: #ffffff; /* Default white */
+}
+
+/* Force white text in Light Mode - Because dashboard cards have colored BG */
+[data-theme="light"] .stat-value,
+[data-theme="light"] .stat-label {
+  color: #ffffff !important;
+}
+
+/* Section Head overrides */
 .section-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
-.section-head h2 {
-  font-size: 18px;
-}
+
 .btn-text {
   background: none;
   border: none;
   color: var(--primary);
   font-weight: 600;
   cursor: pointer;
+  font-size: 14px;
 }
 
+/* Subscription List */
 .subscription-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* Mini Card */
 .mini-card {
   background: #0f182c;
   border: 1px solid rgba(255, 255, 255, 0.04);
@@ -267,11 +235,13 @@ function getDaysLeft(sub) {
   align-items: center;
   justify-content: space-between;
 }
+
 .mini-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .avatar-sm {
   width: 36px;
   height: 36px;
@@ -280,6 +250,7 @@ function getDaysLeft(sub) {
   place-items: center;
   color: white;
 }
+
 .avatar-sm svg {
   width: 18px;
   height: 18px;
@@ -287,16 +258,19 @@ function getDaysLeft(sub) {
   stroke: currentColor;
   stroke-width: 2;
 }
+
 .mini-title {
   margin: 0;
   font-size: 14px;
   color: #fff;
 }
+
 .title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .expiry-label {
   font-size: 10px;
   background: rgba(255, 111, 60, 0.2);
@@ -306,31 +280,37 @@ function getDaysLeft(sub) {
   font-weight: 700;
   text-transform: uppercase;
 }
+
 .mini-card.expiring-soon {
   border-color: rgba(255, 111, 60, 0.3);
   background: linear-gradient(to right, rgba(255, 111, 60, 0.05), #0f182c);
 }
+
 .mini-cat {
   font-size: 12px;
   color: var(--muted);
   text-transform: capitalize;
 }
+
 .mini-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .mini-price {
   font-weight: 600;
   font-size: 13px;
   color: #dfe7ff;
 }
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #444;
 }
+
 .mini-actions {
   display: flex;
   gap: 6px;
@@ -338,10 +318,12 @@ function getDaysLeft(sub) {
   opacity: 0;
   transition: 0.2s;
 }
+
 .mini-card:hover .mini-actions {
   opacity: 1;
 }
 
+/* Icon Buttons XS */
 .icon-btn-xs {
   width: 26px;
   height: 26px;
@@ -353,13 +335,16 @@ function getDaysLeft(sub) {
   border: none;
   cursor: pointer;
 }
+
 .icon-btn-xs:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
+
 .icon-btn-xs.danger:hover {
   color: #ff6b6b;
 }
+
 .icon-btn-xs svg {
   width: 14px;
   height: 14px;
@@ -373,16 +358,9 @@ function getDaysLeft(sub) {
   box-shadow: 0 0 10px rgba(58, 222, 139, 0.4);
 }
 
-[data-theme="light"] .top-bar h1 {
+/* Light Theme Overrides */
+[data-theme="light"] .mini-title {
   color: #111827;
-}
-[data-theme="light"] .section-head h2 {
-  color: #111827;
-}
-
-/* Stat Cards usually keep their gradients/colors in light mode, but maybe add shadow */
-[data-theme="light"] .stat-card {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
 [data-theme="light"] .mini-card {
@@ -390,19 +368,20 @@ function getDaysLeft(sub) {
   border-color: rgba(0, 0, 0, 0.05);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
-[data-theme="light"] .mini-title {
-  color: #111827;
-}
+
 [data-theme="light"] .mini-cat {
   color: #6b7280;
 }
+
 [data-theme="light"] .mini-price {
   color: #1f2937;
 }
+
 [data-theme="light"] .icon-btn-xs {
   background: #f3f4f6;
   color: #6b7280;
 }
+
 [data-theme="light"] .icon-btn-xs:hover {
   background: #e5e7eb;
   color: #111827;
@@ -412,6 +391,7 @@ function getDaysLeft(sub) {
   background: linear-gradient(to right, #fff5f2, white);
   border-color: #ffbdad;
 }
+
 [data-theme="light"] .expiry-label {
   background: #fff0eb;
   color: #e65100;

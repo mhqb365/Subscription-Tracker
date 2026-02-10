@@ -74,19 +74,29 @@ function initializeGisClient() {
         "google_token_expiry",
         Date.now() + resp.expires_in * 1000,
       );
+      localStorage.setItem("google_logged_in", "true");
     },
   });
   gisInited = true;
+
+  // Try silent login on init if user was previously logged in
+  if (
+    !isAuthenticated.value &&
+    localStorage.getItem("google_logged_in") === "true"
+  ) {
+    tokenClient.requestAccessToken({ prompt: "" });
+  }
 }
 
 function checkAuth() {
   const token = localStorage.getItem("google_access_token");
   const expiry = localStorage.getItem("google_token_expiry");
+  const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
 
   if (token && expiry && Date.now() < parseInt(expiry)) {
     gapi.client.setToken({ access_token: token });
     isAuthenticated.value = true;
-  } else {
+  } else if (!wasLoggedIn) {
     isAuthenticated.value = false;
   }
   isInitialized.value = true;
@@ -94,10 +104,10 @@ function checkAuth() {
 
 export function login() {
   if (!gisInited) {
-    alert("Google Services not fully initialized. Check console for errors.");
+    alert("Google Services not fully initialized.");
     return;
   }
-  tokenClient.requestAccessToken({ prompt: "consent" });
+  tokenClient.requestAccessToken({ prompt: "select_account" });
 }
 
 export function logout() {
@@ -107,6 +117,7 @@ export function logout() {
     gapi.client.setToken("");
     localStorage.removeItem("google_access_token");
     localStorage.removeItem("google_token_expiry");
+    localStorage.removeItem("google_logged_in");
     isAuthenticated.value = false;
   }
 }

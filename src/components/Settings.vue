@@ -146,14 +146,14 @@ async function handleRestore() {
               :disabled="isSyncing || !!initError"
               class="btn btn-secondary"
             >
-              Upload to Cloud
+              Backup to Cloud
             </button>
             <button
               @click="handleRestore"
               :disabled="isSyncing || !!initError"
               class="btn btn-secondary"
             >
-              Download from Cloud
+              Restore from Cloud
             </button>
           </div>
 

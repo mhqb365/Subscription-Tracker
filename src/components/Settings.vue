@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import {
   isAuthenticated,
   login,
@@ -28,6 +28,9 @@ const props = defineProps({
 
 const emit = defineEmits(["import", "toggle-theme"]);
 
+const tokenExpiringSoon = ref(false);
+const minutesUntilExpiry = ref(0);
+
 const syncStatus = computed(() => {
   if (isSyncing.value) return "Syncing...";
   if (lastSyncTime.value) {
@@ -42,6 +45,62 @@ const syncStatus = computed(() => {
   }
   return "Not synced yet";
 });
+
+function checkTokenExpiry() {
+  const expiry = localStorage.getItem("google_token_expiry");
+  if (!expiry) {
+    tokenExpiringSoon.value = false;
+    return;
+  }
+
+  const now = Date.now();
+  const expiryTime = parseInt(expiry);
+  const timeUntilExpiry = expiryTime - now;
+  const minutes = Math.floor(timeUntilExpiry / (60 * 1000));
+
+  minutesUntilExpiry.value = minutes;
+  tokenExpiringSoon.value = minutes < 10 && minutes > 0;
+}
+
+onMounted(() => {
+  checkTokenExpiry();
+  // Check every minute
+  setInterval(checkTokenExpiry, 60 * 1000);
+
+  // Auto-reconnect on any click if token is expired
+  const handleAutoReconnect = () => {
+    const token = localStorage.getItem("google_access_token");
+    const expiry = localStorage.getItem("google_token_expiry");
+    const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
+
+    if (wasLoggedIn && token && expiry) {
+      const now = Date.now();
+      const expiryTime = parseInt(expiry);
+
+      // If token is expired, auto-reconnect
+      if (expiryTime <= now) {
+        console.log(
+          "G Drive: Token expired, auto-reconnecting on user interaction...",
+        );
+        login();
+        // Remove listener after first trigger
+        document.removeEventListener("click", handleAutoReconnect);
+      }
+    }
+  };
+
+  // Add click listener for auto-reconnect
+  if (!isAuthenticated.value) {
+    const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
+    if (wasLoggedIn) {
+      document.addEventListener("click", handleAutoReconnect, { once: false });
+    }
+  }
+});
+
+function handleReconnect() {
+  login();
+}
 
 async function handleBackup() {
   props.showConfirm({
@@ -124,6 +183,34 @@ async function handleRestore() {
         <div class="error-message">{{ initError }}</div>
         <div class="error-hint">
           Please check your API Key restrictions in Google Cloud Console.
+        </div>
+      </div>
+
+      <!-- Token Expiry Warning -->
+      <div v-if="isAuthenticated && tokenExpiringSoon" class="warning-banner">
+        <div class="warning-content">
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <div class="warning-text">
+            <strong>Session expiring soon</strong>
+            <span
+              >Your Google Drive connection will expire in
+              {{ minutesUntilExpiry }} minute(s)</span
+            >
+          </div>
+          <button @click="handleReconnect" class="btn btn-warning">
+            Reconnect Now
+          </button>
         </div>
       </div>
 
@@ -412,6 +499,71 @@ h2 {
 .error-hint {
   font-size: 0.85em;
   opacity: 0.8;
+}
+
+.warning-banner {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fbbf24;
+}
+
+.warning-content svg {
+  flex-shrink: 0;
+}
+
+.warning-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.warning-text strong {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.warning-text span {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.btn-warning {
+  background: #fbbf24;
+  color: #000;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.btn-warning:hover {
+  background: #f59e0b;
+}
+
+[data-theme="light"] .warning-banner {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+[data-theme="light"] .warning-content {
+  color: #92400e;
+}
+
+[data-theme="light"] .btn-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+[data-theme="light"] .btn-warning:hover {
+  background: #d97706;
 }
 
 /* Responsive */

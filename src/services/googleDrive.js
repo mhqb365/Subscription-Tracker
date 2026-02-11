@@ -79,51 +79,13 @@ function initializeGisClient() {
     },
   });
   gisInited = true;
-
-  // Start periodic token refresh check
-  startTokenRefreshTimer();
-}
-
-// Auto-refresh token before it expires
-function startTokenRefreshTimer() {
-  // Check every 50 minutes
-  setInterval(
-    () => {
-      attemptSilentRefresh();
-    },
-    50 * 60 * 1000,
-  );
-}
-
-async function attemptSilentRefresh() {
-  const token = localStorage.getItem("google_access_token");
-  const expiry = localStorage.getItem("google_token_expiry");
-  const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
-
-  if (!wasLoggedIn || !token) return;
-
-  const now = Date.now();
-  const expiryTime = parseInt(expiry) || 0;
-  const timeUntilExpiry = expiryTime - now;
-
-  // If token expires in less than 10 minutes, refresh it
-  if (timeUntilExpiry < 10 * 60 * 1000 && timeUntilExpiry > 0) {
-    console.log("G Drive: Token expiring soon, attempting silent refresh...");
-    try {
-      if (gisInited && tokenClient) {
-        tokenClient.requestAccessToken({ prompt: "" });
-      }
-    } catch (e) {
-      console.warn("G Drive: Silent refresh failed", e);
-    }
-  }
 }
 
 function checkAuth() {
   const token = localStorage.getItem("google_access_token");
   const expiry = localStorage.getItem("google_token_expiry");
 
-  // Check if we have a token and if it's still theoretically valid
+  // Check if we have a token and if it's still valid
   const now = Date.now();
   const expiryTime = parseInt(expiry) || 0;
 
@@ -132,29 +94,15 @@ function checkAuth() {
       gapi.client.setToken({ access_token: token });
       isAuthenticated.value = true;
       console.log("G Drive: Session restored successfully");
-
-      // Check if we need to refresh soon
-      attemptSilentRefresh();
     } catch (e) {
       console.warn("G Drive: Failed to set token", e);
       isAuthenticated.value = false;
     }
   } else {
-    // If expired or missing, just set authenticated to false, DON'T delete.
-    // This allows the UI to show 'Connect' without breaking things.
+    // Token expired or missing - user needs to reconnect manually
     isAuthenticated.value = false;
     if (token) {
-      console.log("G Drive: Token exists but is likely expired");
-      // Try to refresh if user was previously logged in
-      const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
-      if (wasLoggedIn && gisInited && tokenClient) {
-        console.log("G Drive: Attempting to refresh expired token...");
-        try {
-          tokenClient.requestAccessToken({ prompt: "" });
-        } catch (e) {
-          console.warn("G Drive: Auto-refresh failed", e);
-        }
-      }
+      console.log("G Drive: Token expired. Please reconnect manually.");
     }
   }
   isInitialized.value = true;

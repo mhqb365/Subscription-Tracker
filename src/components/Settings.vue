@@ -66,36 +66,6 @@ onMounted(() => {
   checkTokenExpiry();
   // Check every minute
   setInterval(checkTokenExpiry, 60 * 1000);
-
-  // Auto-reconnect on any click if token is expired
-  const handleAutoReconnect = () => {
-    const token = localStorage.getItem("google_access_token");
-    const expiry = localStorage.getItem("google_token_expiry");
-    const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
-
-    if (wasLoggedIn && token && expiry) {
-      const now = Date.now();
-      const expiryTime = parseInt(expiry);
-
-      // If token is expired, auto-reconnect
-      if (expiryTime <= now) {
-        console.log(
-          "G Drive: Token expired, auto-reconnecting on user interaction...",
-        );
-        login();
-        // Remove listener after first trigger
-        document.removeEventListener("click", handleAutoReconnect);
-      }
-    }
-  };
-
-  // Add click listener for auto-reconnect
-  if (!isAuthenticated.value) {
-    const wasLoggedIn = localStorage.getItem("google_logged_in") === "true";
-    if (wasLoggedIn) {
-      document.addEventListener("click", handleAutoReconnect, { once: false });
-    }
-  }
 });
 
 function handleReconnect() {

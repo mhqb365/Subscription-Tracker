@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import ConfirmModal from "./components/ConfirmModal.vue";
-import { initGoogleServices, autoSync } from "./services/googleDrive";
+import { initGoogleServices } from "./services/googleDrive";
 import { iconPaths } from "./icons";
 
 const router = useRouter();
@@ -208,11 +208,7 @@ onMounted(async () => {
     document.documentElement.setAttribute("data-theme", "dark");
   }
 
-  // Attempt auto sync
-  await autoSync((newData) => {
-    subscriptions.value = newData;
-    // alert("🔄 New data found on Drive and synced!");
-  });
+  // Auto sync disabled - user must manually sync from Settings
 });
 
 // Watch subscriptions and save to localStorage whenever they change

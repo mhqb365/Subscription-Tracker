@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { iconPaths } from "../icons";
 
 const props = defineProps({
@@ -22,11 +22,22 @@ const emit = defineEmits([
   "toggle-active",
 ]);
 
-const searchQuery = ref("");
-const statusFilter = ref("All Status");
-const categoryFilter = ref("All Categories");
-const sortKey = ref("name"); // name, price, expiry
-const sortOrder = ref("asc");
+const searchQuery = ref(localStorage.getItem("sub_search") || "");
+const statusFilter = ref(localStorage.getItem("sub_status") || "All Status");
+const categoryFilter = ref(
+  localStorage.getItem("sub_category") || "All Categories",
+);
+const sortKey = ref(localStorage.getItem("sub_sortKey") || "name"); // name, price, expiry
+const sortOrder = ref(localStorage.getItem("sub_sortOrder") || "asc");
+const viewMode = ref(localStorage.getItem("viewMode") || "grid"); // grid, list
+
+// Persist preferences
+watch(searchQuery, (v) => localStorage.setItem("sub_search", v));
+watch(statusFilter, (v) => localStorage.setItem("sub_status", v));
+watch(categoryFilter, (v) => localStorage.setItem("sub_category", v));
+watch(sortKey, (v) => localStorage.setItem("sub_sortKey", v));
+watch(sortOrder, (v) => localStorage.setItem("sub_sortOrder", v));
+watch(viewMode, (v) => localStorage.setItem("viewMode", v));
 
 const statusOptions = ["All Status", "Active", "Expired"];
 
@@ -134,8 +145,10 @@ function getNextBillingDate(sub) {
       next.setMonth(next.getMonth() + 3);
     } else if (sub.cycle === "Gói 6 tháng" || sub.cycle === "Semi-Annually") {
       next.setMonth(next.getMonth() + 6);
-    } else {
+    } else if (sub.cycle === "Gói Năm" || sub.cycle === "Annually") {
       next.setFullYear(next.getFullYear() + 1);
+    } else {
+      next.setMonth(next.getMonth() + 1);
     }
     if (next.getFullYear() > today.getFullYear() + 10) break;
   }
@@ -260,6 +273,25 @@ function toggleSubActive(sub) {
             Expiration
           </button>
         </div>
+
+        <div class="view-toggle">
+          <button
+            class="view-btn"
+            :class="{ active: viewMode === 'grid' }"
+            @click="viewMode = 'grid'"
+            title="Grid View"
+          >
+            <svg viewBox="0 0 24 24"><path :d="iconPaths.grid" /></svg>
+          </button>
+          <button
+            class="view-btn"
+            :class="{ active: viewMode === 'list' }"
+            @click="viewMode = 'list'"
+            title="List View"
+          >
+            <svg viewBox="0 0 24 24"><path :d="iconPaths.list" /></svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -268,124 +300,217 @@ function toggleSubActive(sub) {
       {{ subscriptions.length }} subscriptions
     </div>
 
-    <div class="subs-grid">
-      <article v-for="sub in filteredSubs" :key="sub.id" class="sub-card-large">
-        <div class="card-top">
-          <div class="card-brand">
+    <div :class="viewMode === 'grid' ? 'subs-grid' : 'subs-list'">
+      <template v-if="viewMode === 'grid'">
+        <article
+          v-for="sub in filteredSubs"
+          :key="sub.id"
+          class="sub-card-large"
+        >
+          <div class="card-top">
+            <div class="card-brand">
+              <div
+                class="brand-icon"
+                :style="{
+                  background: `linear-gradient(135deg, ${sub.accent[0]}, ${sub.accent[1]})`,
+                }"
+              >
+                <svg viewBox="0 0 24 24"><path :d="iconPaths[sub.icon]" /></svg>
+              </div>
+              <div class="brand-info">
+                <h3>{{ sub.name }}</h3>
+                <div class="brand-cat">
+                  <svg
+                    viewBox="0 0 24 24"
+                    style="
+                      width: 12px;
+                      height: 12px;
+                      margin-right: 4px;
+                      fill: none;
+                      stroke: currentColor;
+                    "
+                  >
+                    <path :d="iconPaths.cloud" />
+                  </svg>
+                  {{ sub.category }}
+                </div>
+              </div>
+            </div>
+            <div class="card-status-toggle">
+              <button
+                class="status-pill-toggle"
+                :class="{ 'is-active': sub.isActive }"
+                @click.stop="toggleSubActive(sub)"
+                :title="sub.isActive ? 'Active' : 'Inactive'"
+              >
+                <span class="dot"></span>
+                {{ sub.isActive ? "Active" : "Inactive" }}
+              </button>
+            </div>
+          </div>
+
+          <div class="card-mid">
+            <div class="big-price">{{ formatPriceDisplay(sub) }}</div>
             <div
-              class="brand-icon"
+              class="days-badge"
+              :class="{
+                warning: sub.isActive && getDaysLeft(sub) <= 7,
+                stopped: !sub.isActive,
+              }"
+            >
+              <template v-if="sub.isActive">
+                {{
+                  getDaysLeft(sub) >= 0
+                    ? `${getDaysLeft(sub)}D LEFT`
+                    : `${Math.abs(getDaysLeft(sub))}D OVERDUE`
+                }}
+              </template>
+              <template v-else>
+                {{
+                  getDaysLeft(sub) < 0
+                    ? `${Math.abs(getDaysLeft(sub))}D AGO`
+                    : "STOPPED"
+                }}
+              </template>
+            </div>
+          </div>
+
+          <div class="card-dates">
+            <div class="date-col">
+              <span class="label">START</span>
+              <span class="val">{{ formatDate(sub.startDate) }}</span>
+            </div>
+            <div class="arrow">→</div>
+            <div class="date-col">
+              <span class="label">{{
+                !sub.isActive
+                  ? "STOPPED"
+                  : sub.autoRenew
+                    ? "NEXT BILL"
+                    : "EXPIRES"
+              }}</span>
+              <span class="val">{{ formatDate(getNextBillingDate(sub)) }}</span>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div
+              class="auto-renew"
+              :class="{ active: sub.autoRenew && sub.isActive }"
+            >
+              <template v-if="sub.isActive">
+                <svg viewBox="0 0 24 24" v-if="sub.autoRenew">
+                  <path :d="iconPaths.clock" />
+                </svg>
+                <span>{{
+                  sub.autoRenew ? "Auto-renewal enabled" : "Manual renewal"
+                }}</span>
+              </template>
+              <template v-else>
+                <svg viewBox="0 0 24 24" style="color: var(--muted)">
+                  <path :d="iconPaths.close" />
+                </svg>
+                <span>Subscription stopped</span>
+              </template>
+            </div>
+
+            <div class="card-actions">
+              <button class="icon-btn-sm" @click.stop="$emit('edit', sub)">
+                <svg viewBox="0 0 24 24"><path :d="iconPaths.edit" /></svg>
+              </button>
+              <button
+                class="icon-btn-sm danger"
+                @click.stop="$emit('delete', sub.id)"
+              >
+                <svg viewBox="0 0 24 24"><path :d="iconPaths.trash" /></svg>
+              </button>
+            </div>
+          </div>
+        </article>
+      </template>
+
+      <template v-else>
+        <!-- List View -->
+        <article
+          v-for="sub in filteredSubs"
+          :key="sub.id"
+          class="sub-list-item"
+          :class="{ 'is-inactive': !sub.isActive }"
+          @click="viewMode === 'list' && $emit('edit', sub)"
+        >
+          <div class="list-brand">
+            <div
+              class="brand-icon-sm"
               :style="{
                 background: `linear-gradient(135deg, ${sub.accent[0]}, ${sub.accent[1]})`,
               }"
             >
               <svg viewBox="0 0 24 24"><path :d="iconPaths[sub.icon]" /></svg>
             </div>
-            <div class="brand-info">
-              <h3>{{ sub.name }}</h3>
-              <div class="brand-cat">
-                <svg
-                  viewBox="0 0 24 24"
-                  style="
-                    width: 12px;
-                    height: 12px;
-                    margin-right: 4px;
-                    fill: none;
-                    stroke: currentColor;
-                  "
-                >
-                  <path :d="iconPaths.cloud" />
-                </svg>
-                {{ sub.category }}
-              </div>
+            <div class="list-info">
+              <span class="sub-name">{{ sub.name }}</span>
+              <span class="sub-cat">{{ sub.category }}</span>
             </div>
           </div>
-          <div class="card-status-toggle">
+
+          <div class="list-status">
             <button
-              class="status-pill-toggle"
+              class="status-pill-toggle sm"
               :class="{ 'is-active': sub.isActive }"
               @click.stop="toggleSubActive(sub)"
-              :title="sub.isActive ? 'Active' : 'Inactive'"
             >
               <span class="dot"></span>
               {{ sub.isActive ? "Active" : "Inactive" }}
             </button>
           </div>
-          <div class="card-actions">
-            <button class="icon-btn-sm" @click="$emit('edit', sub)">
-              <svg viewBox="0 0 24 24"><path :d="iconPaths.edit" /></svg>
-            </button>
-            <button class="icon-btn-sm danger" @click="$emit('delete', sub.id)">
-              <svg viewBox="0 0 24 24"><path :d="iconPaths.trash" /></svg>
-            </button>
-          </div>
-        </div>
 
-        <div class="card-mid">
-          <div class="big-price">{{ formatPriceDisplay(sub) }}</div>
-          <div
-            class="days-badge"
-            :class="{
-              warning: sub.isActive && getDaysLeft(sub) <= 7,
-              stopped: !sub.isActive,
-            }"
-          >
-            <template v-if="sub.isActive">
-              {{
-                getDaysLeft(sub) >= 0
-                  ? `${getDaysLeft(sub)}D LEFT`
-                  : `${Math.abs(getDaysLeft(sub))}D OVERDUE`
-              }}
-            </template>
-            <template v-else>
-              {{
-                getDaysLeft(sub) < 0
-                  ? `${Math.abs(getDaysLeft(sub))}D AGO`
-                  : "STOPPED"
-              }}
-            </template>
+          <div class="list-price">
+            {{ formatPriceDisplay(sub) }}
           </div>
-        </div>
 
-        <div class="card-dates">
-          <div class="date-col">
-            <span class="label">START</span>
-            <span class="val">{{ formatDate(sub.startDate) }}</span>
-          </div>
-          <div class="arrow">→</div>
-          <div class="date-col">
+          <div class="list-expiry">
             <span class="label">{{
               !sub.isActive
-                ? "STOPPED"
+                ? "STOPPED:"
                 : sub.autoRenew
-                  ? "NEXT BILL"
-                  : "EXPIRES"
+                  ? "NEXT BILL:"
+                  : "EXPIRES:"
             }}</span>
             <span class="val">{{ formatDate(getNextBillingDate(sub)) }}</span>
           </div>
-        </div>
 
-        <div class="card-footer">
-          <div
-            class="auto-renew"
-            :class="{ active: sub.autoRenew && sub.isActive }"
-          >
-            <template v-if="sub.isActive">
-              <svg viewBox="0 0 24 24" v-if="sub.autoRenew">
-                <path :d="iconPaths.clock" />
-              </svg>
-              <span>{{
-                sub.autoRenew ? "Auto-renewal enabled" : "Manual renewal"
-              }}</span>
-            </template>
-            <template v-else>
-              <svg viewBox="0 0 24 24" style="color: var(--muted)">
-                <path :d="iconPaths.close" />
-              </svg>
-              <span>Subscription stopped</span>
-            </template>
+          <div class="list-badge">
+            <div
+              class="days-badge sm"
+              :class="{
+                warning: sub.isActive && getDaysLeft(sub) <= 7,
+                stopped: !sub.isActive,
+              }"
+            >
+              <template v-if="sub.isActive">
+                {{ getDaysLeft(sub) >= 0 ? `${getDaysLeft(sub)}D` : "!" }}
+              </template>
+              <template v-else>
+                <svg viewBox="0 0 24 24" style="width: 12px; height: 12px">
+                  <path :d="iconPaths.close" />
+                </svg>
+              </template>
+            </div>
           </div>
-        </div>
-      </article>
+
+          <div class="list-actions">
+            <button class="icon-btn-sm" @click.stop="$emit('edit', sub)">
+              <svg viewBox="0 0 24 24"><path :d="iconPaths.edit" /></svg>
+            </button>
+            <button
+              class="icon-btn-sm danger"
+              @click.stop="$emit('delete', sub.id)"
+            >
+              <svg viewBox="0 0 24 24"><path :d="iconPaths.trash" /></svg>
+            </button>
+          </div>
+        </article>
+      </template>
     </div>
   </div>
 </template>
@@ -568,6 +693,47 @@ function toggleSubActive(sub) {
   align-items: center;
 }
 
+.sort-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+  gap: 2px;
+}
+
+.view-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s;
+}
+
+.view-btn.active {
+  background: var(--card-bg);
+  color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.view-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
 .sort-btn {
   background: transparent;
   border: none;
@@ -638,6 +804,7 @@ function toggleSubActive(sub) {
   display: flex;
   gap: 16px;
   flex: 1;
+  align-items: center; /* Prevent child stretching */
 }
 
 .brand-icon {
@@ -648,6 +815,7 @@ function toggleSubActive(sub) {
   place-items: center;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   position: relative;
+  flex-shrink: 0; /* Prevent squishing on mobile */
 }
 
 .card-status-toggle {
@@ -727,10 +895,12 @@ function toggleSubActive(sub) {
   gap: 8px;
   opacity: 0;
   transition: 0.2s;
+  pointer-events: none;
 }
 
 .sub-card-large:hover .card-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .icon-btn-sm {
@@ -845,6 +1015,9 @@ function toggleSubActive(sub) {
 .card-footer {
   margin-top: auto;
   padding-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .auto-renew {
@@ -896,12 +1069,198 @@ function toggleSubActive(sub) {
   color: #111827;
 }
 
+[data-theme="light"] .sub-card-large:hover {
+  border-color: var(--primary);
+}
+
+/* List View Styles */
+.subs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sub-list-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  transition: all 0.2s;
+}
+
+.sub-list-item:hover {
+  border-color: var(--primary);
+  transform: translateX(4px);
+}
+
+.sub-list-item.is-inactive {
+  opacity: 0.6;
+}
+
+.list-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.brand-icon-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.brand-icon-sm svg {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+  stroke-width: 2;
+  fill: none;
+}
+
+.list-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sub-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+}
+
+[data-theme="light"] .sub-name {
+  color: #1f2937;
+}
+
+.sub-cat {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.list-status {
+  width: 100px;
+}
+
+.status-pill-toggle.sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.list-price {
+  font-weight: 700;
+  font-size: 15px;
+  width: 140px;
+}
+
+.list-expiry {
+  display: flex;
+  flex-direction: column;
+  width: 150px;
+}
+
+.list-expiry .label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.list-expiry .val {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.list-badge {
+  width: 60px;
+  display: flex;
+  justify-content: center;
+}
+
+.days-badge.sm {
+  padding: 4px 8px;
+  font-size: 11px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.list-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1024px) {
+  .list-expiry,
+  .list-status {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .sub-list-item {
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+
+  .brand-icon-sm {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  .sub-name {
+    font-size: 14px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sub-cat {
+    font-size: 11px;
+  }
+
+  .list-price {
+    font-size: 13px;
+    width: auto;
+    flex: 1;
+    text-align: right;
+    margin-right: 4px;
+  }
+
+  .days-badge.sm {
+    min-width: 34px;
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .list-badge {
+    width: auto;
+  }
+
+  .list-actions {
+    display: none;
+  }
+
+  .list-brand {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+}
+
 [data-theme="light"] .sub-card-large {
   background: white;
   border-color: rgba(0, 0, 0, 0.05);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
-
 [data-theme="light"] .brand-info h3 {
   color: #111827;
 }
@@ -1008,8 +1367,15 @@ function toggleSubActive(sub) {
   }
 
   .card-brand {
-    max-width: 70%; /* Ensure space for actions */
+    max-width: 100%; /* Fully take width now */
     overflow: hidden;
+    align-items: center;
+  }
+
+  .card-actions {
+    opacity: 1;
+    pointer-events: auto;
+    margin-left: auto;
   }
 
   .card-brand h3 {

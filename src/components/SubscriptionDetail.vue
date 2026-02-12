@@ -166,14 +166,17 @@ const calculatedHistory = computed(() => {
     });
 
     const cycle = formData.cycle || "Monthly";
-    if (cycle === "Monthly") {
+    if (cycle === "Monthly" || cycle === "Gói tháng") {
       current.setMonth(current.getMonth() + 1);
-    } else if (cycle === "Quarterly") {
+    } else if (cycle === "Quarterly" || cycle === "Gói Quý") {
       current.setMonth(current.getMonth() + 3);
-    } else if (cycle === "Semi-Annually") {
+    } else if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng") {
       current.setMonth(current.getMonth() + 6);
-    } else {
+    } else if (cycle === "Annually" || cycle === "Gói Năm") {
       current.setFullYear(current.getFullYear() + 1);
+    } else {
+      // Fallback to monthly if cycle is unknown to avoid infinite loops or yearly defaults
+      current.setMonth(current.getMonth() + 1);
     }
 
     // Safety break (e.g., 100 years of monthly payments is ~1200)
@@ -255,9 +258,13 @@ const calculatedHistory = computed(() => {
                   <label>Billing Cycle</label>
                   <select v-model="formData.cycle">
                     <option value="Monthly">Monthly</option>
+                    <option value="Gói tháng">Gói tháng</option>
                     <option value="Quarterly">Quarterly</option>
+                    <option value="Gói Quý">Gói Quý</option>
                     <option value="Semi-Annually">Semi-Annually</option>
+                    <option value="Gói 6 tháng">Gói 6 tháng</option>
                     <option value="Annually">Annually</option>
+                    <option value="Gói Năm">Gói Năm</option>
                   </select>
                 </div>
               </div>

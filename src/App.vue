@@ -271,7 +271,7 @@ const totalSpending = computed(() => {
 const stats = computed(() => [
   {
     title: "Total Subscriptions",
-    value: subscriptions.value.length.toString(),
+    value: subscriptions.value.filter((s) => s.isActive).length.toString(),
     icon: "layers",
     gradient: "linear-gradient(135deg, #7b5bff, #9b5cf7)",
   },
@@ -290,6 +290,7 @@ const stats = computed(() => [
   {
     title: "Total Members",
     value: subscriptions.value
+      .filter((s) => s.isActive)
       .reduce((acc, sub) => acc + (sub.familyPlan ? sub.members || 0 : 0), 0)
       .toString(),
     icon: "users",
@@ -710,9 +711,10 @@ function getRandomGradient() {
   }
 
   .nav-icon {
-    width: 32px;
-    height: 32px;
+    width: 38px;
+    height: 38px;
     margin-bottom: 2px;
+    border-radius: 12px; /* Consistent squircle */
   }
   .nav-icon svg {
     width: 20px;

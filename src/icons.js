@@ -49,4 +49,5 @@ export const iconPaths = {
   download: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3",
   upload: "M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12",
   trending: "M23 6l-9.5 9.5-5-5L1 18M17 6h6v6",
+  chevronDown: "M6 9l6 6 6-6",
 };

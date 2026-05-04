@@ -22,4 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 dist
+
 .agent
+GEMINI.md
+ERRORS.md

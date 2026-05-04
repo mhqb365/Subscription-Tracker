@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import { iconPaths } from "../icons";
 
 const props = defineProps({
@@ -11,13 +11,25 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  categories: {
+    type: Array,
+    default: () => [],
+  },
 });
+
+const selectedCategory = ref("all");
 
 const emit = defineEmits(["view-all", "edit", "delete", "add"]);
 
 // Show top 5 subscriptions expiring soonest
 const expiringSubs = computed(() => {
-  return [...props.subscriptions]
+  let filtered = [...props.subscriptions];
+
+  if (selectedCategory.value !== "all") {
+    filtered = filtered.filter((s) => s.category === selectedCategory.value);
+  }
+
+  return filtered
     .sort((a, b) => {
       // Prioritize active ones and those expiring soon
       if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
@@ -63,6 +75,77 @@ function getDaysLeft(sub) {
   const diff = nextBilling - today;
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
+
+function isExpiringSoon(sub) {
+  if (sub.status !== "ACTIVE" || sub.isActive === false) return false;
+  const daysLeft = getDaysLeft(sub);
+  return daysLeft >= 0 && daysLeft <= 7;
+}
+
+const filteredStats = computed(() => {
+  let filtered = [...props.subscriptions];
+  if (selectedCategory.value !== "all") {
+    filtered = filtered.filter((s) => s.category === selectedCategory.value);
+  }
+
+  // Calculate Total Spending for filtered subs
+  let totalSpending = 0;
+  filtered.forEach((sub) => {
+    if (sub.status !== "ACTIVE" || sub.isActive === false) return;
+    let amount = Number(sub.price) || 0;
+
+    // Currency conversion (replicated from App.vue)
+    if (sub.currency === "USD") {
+      amount = amount * 25400;
+    }
+
+    // Cycle normalization
+    const cycle = sub.cycle || "";
+    if (cycle === "Quarterly" || cycle === "Gói Quý") {
+      amount = amount / 3;
+    } else if (cycle === "Semi-Annually" || cycle === "Gói 6 tháng") {
+      amount = amount / 6;
+    } else if (cycle === "Annually" || cycle === "Gói Năm") {
+      amount = amount / 12;
+    }
+    totalSpending += amount;
+  });
+
+  const formattedSpending = new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(totalSpending);
+
+  return [
+    {
+      title: "Total Subscriptions",
+      value: filtered.filter((s) => s.isActive).length.toString(),
+      icon: "layers",
+      gradient: "linear-gradient(135deg, #7b5bff, #9b5cf7)",
+    },
+    {
+      title: "Monthly Spending",
+      value: formattedSpending,
+      icon: "dollar",
+      gradient: "linear-gradient(135deg, #00cba9, #0096c7)",
+    },
+    {
+      title: "Expiring Soon",
+      value: filtered.filter(isExpiringSoon).length.toString(),
+      icon: "clock",
+      gradient: "linear-gradient(135deg, #ff9f43, #ff6f3c)",
+    },
+    {
+      title: "Total Members",
+      value: filtered
+        .filter((s) => s.isActive)
+        .reduce((acc, sub) => acc + (sub.familyPlan ? sub.members || 0 : 0), 0)
+        .toString(),
+      icon: "users",
+      gradient: "linear-gradient(135deg, #f452ff, #b36bff)",
+    },
+  ];
+});
 </script>
 
 <template>
@@ -80,7 +163,7 @@ function getDaysLeft(sub) {
 
     <section class="stats-grid">
       <article
-        v-for="item in stats"
+        v-for="item in filteredStats"
         :key="item.title"
         class="stat-card"
         :style="{ background: item.gradient }"
@@ -99,9 +182,20 @@ function getDaysLeft(sub) {
 
     <section class="section">
       <div class="section-head">
-        <h2 class="section-title" style="margin-bottom: 0">
-          Recent Subscriptions
-        </h2>
+        <div class="section-head-left">
+          <h2 class="section-title">Recent Subscriptions</h2>
+          <div class="filter-wrapper">
+            <select v-model="selectedCategory" class="category-select">
+              <option value="all">All Categories</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                {{ cat.label }}
+              </option>
+            </select>
+            <svg class="select-icon" viewBox="0 0 24 24">
+              <path :d="iconPaths.chevronDown" />
+            </svg>
+          </div>
+        </div>
         <button class="btn-text" @click="$emit('view-all')">View All</button>
       </div>
 
@@ -212,7 +306,72 @@ function getDaysLeft(sub) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.section-head-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  margin-bottom: 0 !important;
+}
+
+.filter-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.category-select {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 6px 32px 6px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 150px;
+}
+
+.category-select:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.category-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.select-icon {
+  position: absolute;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  color: var(--muted);
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+[data-theme="light"] .category-select {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
+[data-theme="light"] .category-select:hover {
+  background: #e5e7eb;
 }
 
 .btn-text {

@@ -419,8 +419,7 @@ function getRandomGradient() {
     <div class="loading-bar" :class="{ loading: isRouteLoading }"></div>
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-knot"></div>
-        <span>ST</span>
+        <img src="./assets/logo.png" alt="Logo" class="brand-img" />
       </div>
       <nav class="nav">
         <router-link
@@ -528,27 +527,21 @@ function getRandomGradient() {
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #1dd0ff, #8c67ff);
   display: grid;
   place-items: center;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: -0.25px;
   position: relative;
-  box-shadow: 0 14px 40px rgba(93, 80, 255, 0.35);
+  box-shadow: 0 14px 40px rgba(93, 80, 255, 0.2);
   margin-bottom: 24px;
+  overflow: hidden;
+  background: white; /* Thêm nền trắng nếu logo có độ trong suốt */
 }
 
-.brand-knot {
-  position: absolute;
-  inset: 8px;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), transparent),
-    radial-gradient(circle at 70% 70%, rgba(0, 0, 0, 0.25), transparent);
-  opacity: 0.4;
-  pointer-events: none;
+.brand-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
+
 
 .nav {
   display: flex;

@@ -315,7 +315,10 @@ function toggleSubActive(sub) {
                   background: `linear-gradient(135deg, ${sub.accent[0]}, ${sub.accent[1]})`,
                 }"
               >
-                <svg viewBox="0 0 24 24"><path :d="iconPaths[sub.icon]" /></svg>
+                <svg v-if="sub.icon && iconPaths[sub.icon]" viewBox="0 0 24 24">
+                  <path :d="iconPaths[sub.icon]" />
+                </svg>
+                <span v-else class="letter-icon">{{ (categories.find(c => c.id === sub.category)?.label || sub.name).charAt(0).toUpperCase() }}</span>
               </div>
               <div class="brand-info">
                 <h3>{{ sub.name }}</h3>
@@ -332,7 +335,7 @@ function toggleSubActive(sub) {
                   >
                     <path :d="iconPaths.cloud" />
                   </svg>
-                  {{ sub.category }}
+                  {{ categories.find((c) => c.id === sub.category)?.label || sub.category }}
                 </div>
               </div>
             </div>
@@ -445,11 +448,14 @@ function toggleSubActive(sub) {
                 background: `linear-gradient(135deg, ${sub.accent[0]}, ${sub.accent[1]})`,
               }"
             >
-              <svg viewBox="0 0 24 24"><path :d="iconPaths[sub.icon]" /></svg>
+              <svg v-if="sub.icon && iconPaths[sub.icon]" viewBox="0 0 24 24">
+                <path :d="iconPaths[sub.icon]" />
+              </svg>
+              <span v-else class="letter-icon sm">{{ (categories.find(c => c.id === sub.category)?.label || sub.name).charAt(0).toUpperCase() }}</span>
             </div>
             <div class="list-info">
               <span class="sub-name">{{ sub.name }}</span>
-              <span class="sub-cat">{{ sub.category }}</span>
+              <span class="sub-cat">{{ categories.find((c) => c.id === sub.category)?.label || sub.category }}</span>
             </div>
           </div>
 
@@ -874,6 +880,16 @@ function toggleSubActive(sub) {
   fill: none;
   stroke: white;
   stroke-width: 2;
+}
+
+.letter-icon {
+  font-weight: 700;
+  font-size: 24px;
+  color: #fff;
+}
+
+.letter-icon.sm {
+  font-size: 16px;
 }
 
 .brand-info h3 {

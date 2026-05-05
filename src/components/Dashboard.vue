@@ -217,7 +217,10 @@ const filteredStats = computed(() => {
                 background: `linear-gradient(135deg, ${sub.accent[0]}, ${sub.accent[1]})`,
               }"
             >
-              <svg viewBox="0 0 24 24"><path :d="iconPaths[sub.icon]" /></svg>
+              <svg v-if="sub.icon && iconPaths[sub.icon]" viewBox="0 0 24 24">
+                <path :d="iconPaths[sub.icon]" />
+              </svg>
+              <span v-else class="letter-icon">{{ (categories.find(c => c.id === sub.category)?.label || sub.name).charAt(0).toUpperCase() }}</span>
             </div>
             <div>
               <div class="title-row">
@@ -230,7 +233,9 @@ const filteredStats = computed(() => {
                 </span>
                 <span v-if="!sub.isActive" class="stopped-label"> Ngưng </span>
               </div>
-              <div class="mini-cat">{{ sub.category }}</div>
+              <div class="mini-cat">
+                {{ categories.find((c) => c.id === sub.category)?.label || sub.category }}
+              </div>
             </div>
           </div>
           <div class="mini-right">
@@ -422,6 +427,11 @@ const filteredStats = computed(() => {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
+}
+
+.letter-icon {
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .mini-title {

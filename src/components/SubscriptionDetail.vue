@@ -327,9 +327,12 @@ const calculatedHistory = computed(() => {
                     formData.icon = cat.icon;
                   "
                 >
-                  <svg viewBox="0 0 24 24">
-                    <path :d="iconPaths[cat.icon]" />
-                  </svg>
+                  <div class="cat-icon-wrapper">
+                    <svg v-if="cat.icon && iconPaths[cat.icon]" viewBox="0 0 24 24">
+                      <path :d="iconPaths[cat.icon]" />
+                    </svg>
+                    <span v-else class="letter-icon">{{ cat.label.charAt(0).toUpperCase() }}</span>
+                  </div>
                   <span>{{ cat.label }}</span>
                 </div>
               </div>
@@ -614,6 +617,27 @@ const calculatedHistory = computed(() => {
 }
 .category-item:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .category-item:hover {
+  background: #f1f5f9;
+}
+
+.cat-icon-wrapper {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.letter-icon {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+[data-theme="light"] .letter-icon {
+  color: #1e293b;
 }
 .category-item.selected {
   background: rgba(123, 91, 255, 0.15);

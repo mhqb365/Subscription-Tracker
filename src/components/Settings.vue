@@ -20,13 +20,50 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  categories: {
+    type: Array,
+    required: true,
+  },
   showConfirm: {
     type: Function,
     required: true,
   },
 });
 
-const emit = defineEmits(["import", "toggle-theme"]);
+const emit = defineEmits([
+  "import",
+  "toggle-theme",
+  "add-category",
+  "update-category",
+  "delete-category",
+]);
+
+const isEditingCategory = ref(false);
+const editingCategory = ref({ id: "", label: "", icon: "other" });
+const isNewCategory = ref(true);
+
+const availableIcons = [
+  "dev",
+  "design",
+  "entertainment",
+  "card",
+  "cloud",
+  "security",
+  "bolt",
+  "wifi",
+  "other",
+  "grid",
+  "layers",
+  "chart",
+  "plus",
+  "search",
+  "list",
+  "server",
+  "users",
+  "dollar",
+  "clock",
+  "calendar",
+];
 
 const tokenExpiringSoon = ref(false);
 const minutesUntilExpiry = ref(0);
@@ -111,6 +148,65 @@ async function handleRestore() {
     },
   });
 }
+
+function openAddCategory() {
+  isNewCategory.value = true;
+  editingCategory.value = {
+    id: "cat_" + Date.now(),
+    label: "",
+    icon: "other",
+  };
+  isEditingCategory.value = true;
+}
+
+function openEditCategory(category) {
+  isNewCategory.value = false;
+  editingCategory.value = { ...category };
+  isEditingCategory.value = true;
+}
+
+function closeCategoryModal() {
+  isEditingCategory.value = false;
+}
+
+function saveCategory() {
+  if (!editingCategory.value.label.trim()) return;
+
+  if (isNewCategory.value) {
+    emit("add-category", { ...editingCategory.value });
+  } else {
+    emit("update-category", { ...editingCategory.value });
+  }
+  closeCategoryModal();
+}
+
+function isCategoryUsed(categoryId) {
+  return props.subscriptions.some((s) => s.category === categoryId);
+}
+
+function handleDeleteCategory(category) {
+  if (isCategoryUsed(category.id)) {
+    props.showConfirm({
+      title: "Cannot Delete Category",
+      message: `The category "${category.label}" is currently being used by one or more subscriptions. Please change their category before deleting this one.`,
+      confirmText: "I Understand",
+      onConfirm: () => {},
+    });
+    return;
+  }
+
+  props.showConfirm({
+    title: "Delete Category",
+    message: `Are you sure you want to delete the category "${category.label}"?`,
+    confirmText: "Delete",
+    isDanger: true,
+    onConfirm: () => {
+      emit("delete-category", category.id);
+    },
+  });
+}
+
+import { iconPaths } from "../icons";
 </script>
 
 <template>
@@ -137,6 +233,169 @@ async function handleRestore() {
         >
           <div class="knob"></div>
         </button>
+      </div>
+    </div>
+
+    <!-- Category Management Section -->
+    <div class="setting-section" style="margin-top: 24px">
+      <div class="section-header">
+        <div>
+          <h2>Categories</h2>
+          <p class="description" style="margin-bottom: 0">
+            Manage your subscription categories and icons
+          </p>
+        </div>
+        <button @click="openAddCategory" class="btn btn-primary btn-sm">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path :d="iconPaths.plus" />
+          </svg>
+          Add Category
+        </button>
+      </div>
+
+      <div class="categories-grid">
+        <div
+          v-for="category in categories"
+          :key="category.id"
+          class="category-item"
+        >
+          <div class="category-info">
+            <div class="category-icon-bg">
+              <svg
+                v-if="category.icon && iconPaths[category.icon]"
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path :d="iconPaths[category.icon]" />
+              </svg>
+              <span v-else class="category-letter">{{
+                category.label.charAt(0).toUpperCase()
+              }}</span>
+            </div>
+            <span class="category-name">{{ category.label }}</span>
+          </div>
+          <div class="category-actions">
+            <button
+              @click="openEditCategory(category)"
+              class="icon-btn"
+              title="Edit"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path :d="iconPaths.edit" />
+              </svg>
+            </button>
+            <button
+              @click="handleDeleteCategory(category)"
+              class="icon-btn delete"
+              title="Delete"
+              :class="{ disabled: isCategoryUsed(category.id) }"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path :d="iconPaths.trash" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Edit Modal -->
+    <div
+      v-if="isEditingCategory"
+      class="modal-overlay"
+      @click.self="closeCategoryModal"
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>{{ isNewCategory ? "Add Category" : "Edit Category" }}</h3>
+          <button @click="closeCategoryModal" class="close-btn">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path :d="iconPaths.close" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Category Name</label>
+            <input
+              v-model="editingCategory.label"
+              type="text"
+              placeholder="e.g. Shopping, Health..."
+              class="form-input"
+              autofocus
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Choose Icon</label>
+            <div class="icons-selector">
+              <button
+                v-for="icon in availableIcons"
+                :key="icon"
+                class="icon-select-btn"
+                :class="{ active: editingCategory.icon === icon }"
+                @click="editingCategory.icon = icon"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path :d="iconPaths[icon]" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="closeCategoryModal" class="btn btn-secondary">
+            Cancel
+          </button>
+          <button
+            @click="saveCategory"
+            class="btn btn-primary"
+            :disabled="!editingCategory.label.trim()"
+          >
+            Save Category
+          </button>
+        </div>
       </div>
     </div>
 
@@ -380,6 +639,12 @@ h2 {
   border: none;
 }
 
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
 .btn-primary {
   background: #fff;
   color: #000;
@@ -536,6 +801,260 @@ h2 {
   background: #d97706;
 }
 
+/* Category Management */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.category-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-icon-bg {
+  width: 32px;
+  height: 32px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.category-letter {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.category-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.category-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+[data-theme="light"] .icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1e293b;
+}
+
+.icon-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.icon-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fff;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.icons-selector {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.icon-select-btn {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-select-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.icon-select-btn.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #818cf8;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .modal-content {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] .category-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] .category-item:hover {
+  background: #f1f5f9;
+}
+[data-theme="light"] .category-name {
+  color: #1e293b;
+}
+[data-theme="light"] .form-input {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+[data-theme="light"] .icon-select-btn {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .icon-select-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .actions-row {
@@ -544,6 +1063,9 @@ h2 {
   .btn {
     width: 100%;
     justify-content: center;
+  }
+  .categories-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

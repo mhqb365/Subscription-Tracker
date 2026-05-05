@@ -67,17 +67,31 @@ const popularServices = [
   { name: "iCloud", icon: "cloud", color: "#3693F3", category: "cloud" },
 ];
 
-const categories = [
-  { id: "dev", label: "Development", icon: "dev" },
-  { id: "design", label: "Design", icon: "design" },
-  { id: "entertainment", label: "Entertainment", icon: "entertainment" },
-  { id: "credit", label: "Credit", icon: "card" },
-  { id: "cloud", label: "Cloud", icon: "cloud" },
-  { id: "security", label: "Security", icon: "security" },
-  { id: "utilities", label: "Electricity", icon: "bolt" },
-  { id: "internet", label: "Internet", icon: "wifi" },
-  { id: "other", label: "Other", icon: "other" },
-];
+const CATEGORIES_STORAGE_KEY = "subscription_tracker_categories";
+
+const loadCategories = () => {
+  try {
+    const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Error loading categories from localStorage:", e);
+  }
+  return [
+    { id: "dev", label: "Development", icon: "dev" },
+    { id: "design", label: "Design", icon: "design" },
+    { id: "entertainment", label: "Entertainment", icon: "entertainment" },
+    { id: "credit", label: "Credit", icon: "card" },
+    { id: "cloud", label: "Cloud", icon: "cloud" },
+    { id: "security", label: "Security", icon: "security" },
+    { id: "utilities", label: "Electricity", icon: "bolt" },
+    { id: "internet", label: "Internet", icon: "wifi" },
+    { id: "other", label: "Other", icon: "other" },
+  ];
+};
+
+const categories = ref(loadCategories());
 
 // State
 const selectedSub = ref(null);
@@ -215,7 +229,6 @@ onMounted(async () => {
   // Auto sync disabled - user must manually sync from Settings
 });
 
-// Watch subscriptions and save to localStorage whenever they change
 watch(
   subscriptions,
   (newValue) => {
@@ -223,6 +236,18 @@ watch(
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newValue));
     } catch (e) {
       console.error("Error saving to localStorage:", e);
+    }
+  },
+  { deep: true },
+);
+
+watch(
+  categories,
+  (newValue) => {
+    try {
+      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(newValue));
+    } catch (e) {
+      console.error("Error saving categories to localStorage:", e);
     }
   },
   { deep: true },
@@ -397,6 +422,21 @@ function handleImport(data) {
   });
 }
 
+function handleAddCategory(category) {
+  categories.value.push(category);
+}
+
+function handleUpdateCategory(updatedCategory) {
+  const index = categories.value.findIndex((c) => c.id === updatedCategory.id);
+  if (index !== -1) {
+    categories.value[index] = updatedCategory;
+  }
+}
+
+function handleDeleteCategory(categoryId) {
+  categories.value = categories.value.filter((c) => c.id !== categoryId);
+}
+
 function handleNav(item) {
   lastRoute.value = route.name;
   router.push({ name: item.id });
@@ -459,6 +499,9 @@ function getRandomGradient() {
             @import="handleImport"
             @toggle-theme="toggleTheme"
             @save="handleSave"
+            @add-category="handleAddCategory"
+            @update-category="handleUpdateCategory"
+            @delete-category="handleDeleteCategory"
             @cancel="() => router.push({ name: lastRoute })"
           />
         </transition>
